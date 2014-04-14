@@ -2,7 +2,6 @@
 
 
 namespace WCMIA_2014;
-use SplFileObject;
 
 class UserImporter {
 	const MENU_SLUG = 'wcmia_userimporter';
@@ -11,14 +10,13 @@ class UserImporter {
 
 	/** @var AdminPage */
 	private $admin_page = NULL;
-	private $uploaded_file_path = '';
+
+	/** @var SubmissionHandler */
+	private $submission_handler = NULL;
 
 	private function __construct() {
 		$this->setup_admin_page();
-		if ( isset($_POST['wcmianonce']) && isset($_FILES['import_file']['tmp_name']) ) {
-			$this->uploaded_file_path = $_FILES['import_file']['tmp_name'];
-			add_action( 'load-tools_page_'.self::MENU_SLUG, array( $this, 'handle_import_request' ), 10, 0 );
-		}
+		$this->setup_submission_handler();
 	}
 
 	private function setup_admin_page() {
@@ -26,22 +24,12 @@ class UserImporter {
 		add_action( 'admin_menu', array( $this->admin_page, 'register' ), 10, 0 );
 	}
 
-	public function handle_import_request() {
-		if ( !wp_verify_nonce($_POST['wcmianonce'], 'userimport') ) {
-			return;
-		}
-		if ( !file_exists($this->uploaded_file_path) ) {
-			return;
-		}
-		$file = new SplFileObject($this->uploaded_file_path);
-		$file->setFlags(SplFileObject::SKIP_EMPTY|SplFileObject::READ_CSV|SplFileObject::READ_AHEAD|SplFileObject::DROP_NEW_LINE);
+	private function setup_submission_handler() {
+		$this->submission_handler = new SubmissionHandler($_POST, $_FILES);
 
-		$importer = new UserListImporter($file);
-		$messages = $importer->import_list();
-		$messages->save();
-
-		wp_redirect( add_query_arg( array('settings-updated' => 1 ) ) );
-		exit();
+		if ( $this->submission_handler->submission_detected() ) {
+			add_action( 'load-tools_page_'.AdminPage::MENU_SLUG, array( $this->submission_handler, 'handle_import_request' ), 10, 0 );
+		}
 	}
 
 	public static function instance() {
