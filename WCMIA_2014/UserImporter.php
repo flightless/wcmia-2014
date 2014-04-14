@@ -32,6 +32,14 @@ class UserImporter {
 		}
 	}
 
+	public function admin() {
+		return $this->admin_page;
+	}
+
+	public function handler() {
+		return $this->submission_handler;
+	}
+
 	public static function instance() {
 		if ( !isset(self::$instance) ) {
 			self::$instance = new self();
